@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { getWelcomeEmailContent } from "../utils/email.templates.js";
+import axios from "axios";
 
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -46,4 +47,24 @@ export const sendWelcomeEmail = async (email, userName) => {
   console.log("Email de bienvenida enviado:", info.messageId);
 
   console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+}
+
+export const sendByEmailJs = async (email, options, templateId) => {
+  const dataToSend = {
+    service_id: process.env.EMAIL_JS_SERVICE_ID,
+    template_id: templateId,
+    user_id: process.env.EMAIL_JS_PUBLIC_KEY,
+    accessToken: process.env.EMAIL_JS_PRIVATE_KEY,
+    template_params: {
+      email,
+      ...options,
+    }
+  }
+
+  try {
+    const response = await axios.post(process.env.EMAIL_JS_URL, dataToSend);
+    console.log("Email sent successfully:", response.data);
+  } catch (error) {
+    console.error("Failed to send email:", error);
+  }
 }
