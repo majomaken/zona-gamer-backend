@@ -8,14 +8,15 @@ import { connectDB } from './db.js';
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || 'localhost';
 
-const app = express();
+const app = express(); // Instancia de express
 
-app.use(express.json());
+app.use(express.json()); // Middleware para parsear el body de las peticiones
 
 morgan.token('body', (req) => JSON.stringify(req.body));
 
 if (process.env.NODE_ENV === 'development') {
-    app.use(morgan(debugMorgan));
+  console.log('Development mode');
+  app.use(morgan(debugMorgan));
 }
 
 app.use('/api/v1', routes);

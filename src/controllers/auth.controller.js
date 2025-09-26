@@ -2,13 +2,15 @@ import { getDB } from '../db.js';
 import bcrypt from 'bcryptjs';
 import { generate2FACode, get2FAExpirationTime, verify2FACode } from '../services/twoFactor.service.js';
 import { sendByEmailJs, /*sendWelcomeEmail */ } from '../services/email.service.js';
+import { generateAccessToken, generateRefreshToken } from '../services/jwt.service.js';
+import { ERRORS } from '../constants/global.constants.js';
+import users from '../model/users.model.js';
 
 export const register = async (req, res, next) => {
   const { name, email, password } = req.body;
 
   try {
-    const db = getDB();
-    const usersCollection = db.collection('users');
+    const usersCollection = await users();
 
     const existingUser = await usersCollection.findOne({ email });
     if (existingUser) {
@@ -66,7 +68,7 @@ export const register = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: "Error interno en el servidor",
-      error: "SERVER_ERROR"
+      error: ERRORS.INTERNAL_ERROR
     });
   }
 }
@@ -75,8 +77,7 @@ export const login = async (req, res, next) => {
   const { email, password } = req.body;
 
   try {
-    const db = getDB();
-    const usersCollection = db.collection('users');
+    const usersCollection = await users();
 
     const user = await usersCollection.findOne({ email: email.trim().toLowerCase() });
 
@@ -93,7 +94,7 @@ export const login = async (req, res, next) => {
       return res.status(423).json({
         success: false,
         message: `Cuenta bloqueada temporalmente. Intenta en ${remainingMinutes} minutos`,
-        error: "ACCOUNT_LOCKED"
+        error: ERRORS.ACCOUNT_LOCKED
       })
     }
 
@@ -116,7 +117,7 @@ export const login = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Credenciales inválidas",
-        error: "INVALID_CREDENTIALS"
+        error: ERRORS.INVALID_CREDENTIALS
       })
     }
 
@@ -150,7 +151,7 @@ export const login = async (req, res, next) => {
       return res.status(500).json({
         success: false,
         message: "Error enviando código de verificación",
-        error: "EMAIL_SEND_ERROR"
+        error: ERRORS.EMAIL_SEND_ERROR
       })
     }
 
@@ -211,6 +212,51 @@ export const verify2FA = async (req, res, next) => {
         error: validation.error
       })
     }
+
+    await usersCollection.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          isVerified: true,
+          updatedAt: new Date()
+        },
+        $unset: {
+          twoFactorCode: "",
+          twoFactorExpires: "",
+        }
+      }
+    )
+
+    const tokenPayload = {
+      userId: user._id,
+      email: user.email,
+      name: user.name,
+    }
+
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    const userResponse = {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Autenticación completada exitosamente",
+      data: {
+        user: userResponse,
+        tokens: {
+          accessToken,
+          refreshToken,
+          tokenType: 'Bearer',
+          expiresIn: process.env.JWT_EXPIRES_IN ?? '15m'
+        }
+      }
+    })
 
   } catch (error) {
     console.error("Failed to verify 2FA:", error);
