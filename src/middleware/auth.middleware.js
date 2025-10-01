@@ -28,14 +28,11 @@ export const requireAuth = async (req, res, next) => {
     }
 
     const usersCollection = await users();
-    console.log("decoded", decoded);
-    console.log("decoded.userId", decoded.userId);
 
     const user = await usersCollection.findOne(
       { _id: new ObjectId(decoded.userId) },
       { projection: { password: 0, twoFactorCode: 0, twoFactorExpires: 0 } }
     );
-    console.log("user", user);
 
     if (!user) {
       return res.status(401).json({

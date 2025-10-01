@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { JWT_REFRESH_SECRET, JWT_SECRET } from '../constants/global.constants.js';
 
 /** 
  * Genera un token JWT de acceso con información del usuario
@@ -9,21 +10,23 @@ import jwt from 'jsonwebtoken';
  * @returns {string} -- Token JWT firmado
 */
 export const generateAccessToken = (payload) => {
-  return jwt.sign(
+  const token = jwt.sign(
     payload,
-    process.env.JWT_SECRET,
+    JWT_SECRET,
     {
       expiresIn: process.env.JWT_EXPIRES_IN ?? '15m',
       issuer: 'zona-gamer-api',
       audience: 'zona-gamer-users',
     }
   )
+
+  return token;
 }
 
 export const generateRefreshToken = (payload) => {
   return jwt.sign(
     { userId: payload.userId },
-    process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET,
+    JWT_REFRESH_SECRET || JWT_SECRET,
     {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '1d',
       issuer: 'zona-gamer-api',
@@ -32,19 +35,26 @@ export const generateRefreshToken = (payload) => {
   )
 }
 
+
 export const verifyAccessToken = (token) => {
+  const bodyToken = {
+    issuer: 'zona-gamer-api',
+    audience: 'zona-gamer-users',
+  }
+
   try {
-    return jwt.verify(token, process.env.JWT_SECRET, {
-      issuer: 'zona-gamer-api',
-      audience: 'zona-gamer-users',
-    })
-  } catch (error) {
-    if (error.name === 'TokenExpiredError') {
-      throw new Error('Token expirado');
-    } else if (error.name === 'JsonWebTokenError') {
-      throw new Error('Token inválido');
-    } else {
-      throw new Error('Error al verificar el token');
+    return jwt.verify(token, JWT_SECRET, bodyToken);
+  } catch (accessTokenError) {
+    try {
+      return jwt.verify(token, JWT_REFRESH_SECRET, bodyToken);
+    } catch (refreshTokenError) {
+      if (accessTokenError.name === 'TokenExpiredError' || refreshTokenError.name === 'TokenExpiredError') {
+        throw new Error('Token expirado');
+      } else if (accessTokenError.name === 'JsonWebTokenError' || refreshTokenError.name === 'JsonWebTokenError') {
+        throw new Error('Token inválido');
+      } else {
+        throw new Error('Error al verificar token');
+      }
     }
   }
 }

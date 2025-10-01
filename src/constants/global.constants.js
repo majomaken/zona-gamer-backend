@@ -14,3 +14,6 @@ export const ERRORS = {
   USER_NOT_FOUND: "USER_NOT_FOUND",
   USER_NOT_VERIFIED: "USER_NOT_VERIFIED",
 }
+
+export const JWT_SECRET = process.env.JWT_SECRET;
+export const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;

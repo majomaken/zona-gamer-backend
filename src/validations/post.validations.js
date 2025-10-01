@@ -26,3 +26,41 @@ export const createPostValidation = z.object({
     .optional()
     .default([]),
 })
+
+export const getPostsQueryValidation = z.object({
+  page: z.string()
+    .regex(/^\d+$/, { message: "La página debe ser un número" })
+    .transform(Number)
+    .refine(n => n > 0, { message: "La página debe ser mayor a 0" })
+    .optional()
+    .default(1),
+  limit: z.string()
+    .regex(/^\d+$/, { message: "El límite debe ser un número" })
+    .transform(Number)
+    .refine(n => n > 0 && n <= 50, { message: "El límite debe ser mayor a 0 y menor a 50" })
+    .optional()
+    .default(10),
+  category: z.string()
+    .min(1)
+    .max(30)
+    .optional(),
+  tags: z.string()
+    .optional()
+    .transform(str => str ? str.split(',').map(tag => tag.trim()) : []),
+  search: z.string()
+    .min(1)
+    .max(100)
+    .optional(),
+  sortBy: z.enum(['createdAt', 'updatedAt', 'title', 'likes'])
+    .optional()
+    .default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc'])
+    .optional()
+    .default('desc'),
+})
+
+export const postIdValidation = z.object({
+  id: z.string()
+    .min(1, { message: "ID del post es requerido" })
+    .trim(),
+})
